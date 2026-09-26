@@ -1,0 +1,62 @@
+# =====================================================================
+#  Application configuration.
+#  Any key can be overridden by an environment variable using Spring's
+#  "relaxed binding": spring.datasource.url  <->  SPRING_DATASOURCE_URL
+#  (that's how docker-compose.yml points the app at the postgres container).
+# =====================================================================
+spring:
+  application:
+    name: ewallet-api
+
+  # Local defaults (PostgreSQL started with `docker compose up -d postgres`).
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ewallet
+    username: ewallet
+    password: ewallet
+
+  jpa:
+    # OFF on purpose: with open-in-view=true, the database session stays open
+    # during JSON rendering and lazy relations silently trigger extra queries.
+    # With false, every DB access must happen inside a service method.
+    open-in-view: false
+    hibernate:
+      ddl-auto: none          # the schema belongs to Flyway (db/migration), never to Hibernate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC      # store and read timestamps in UTC whatever the server's timezone
+
+  flyway:
+    enabled: true             # applies db/migration/V*.sql at startup
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false    # dates as "2026-09-25T10:15:30Z", not 1790331330000
+    generator:
+      write-bigdecimal-as-plain: true     # 1000.00, never 1.0E+3
+
+  mvc:
+    problemdetails:
+      enabled: true           # RFC 7807 error bodies for framework errors too
+
+app:
+  jwt:
+    # Override with the JWT_SECRET environment variable (>= 32 bytes).
+    # The default below is for local development ONLY.
+    secret: ${JWT_SECRET:dev-only-secret-change-me-please-32-bytes-min!}
+    ttl: PT1H                 # ISO-8601 duration: token valid for 1 hour
+    issuer: ewallet-api       # "iss" claim, checked on every request
+  operations:
+    max-attempts: 5           # attempts when optimistic locking detects a concurrent update
+    backoff-ms: 25            # base wait between attempts (linear + random jitter)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info  # never expose env, beans, heapdump... publicly
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

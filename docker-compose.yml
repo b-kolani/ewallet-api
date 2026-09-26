@@ -1,0 +1,38 @@
+# Starts the database and the API together:  docker compose up --build
+# Values like ${JWT_SECRET:-default} are read from a .env file if present (see .env.example).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ewallet-postgres
+    environment:
+      POSTGRES_DB: ewallet
+      POSTGRES_USER: ewallet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ewallet}
+    ports:
+      - "5432:5432"                          # exposed so you can connect with psql/DBeaver
+    volumes:
+      - pgdata:/var/lib/postgresql/data      # data survives `docker compose down` (use -v to wipe it)
+    healthcheck:                             # "healthy" only once PostgreSQL accepts connections
+      test: ["CMD-SHELL", "pg_isready -U ewallet -d ewallet"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .                                 # uses the Dockerfile in this folder
+    container_name: ewallet-api
+    depends_on:
+      postgres:
+        condition: service_healthy           # wait for the DB to be ready, not just started
+    environment:
+      # "postgres" is the service name above: Compose provides DNS between containers.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ewallet
+      SPRING_DATASOURCE_USERNAME: ewallet
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-ewallet}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-at-least-32-bytes!!}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
