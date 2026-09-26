@@ -1,4 +1,4 @@
-# E-Wallet API
+# E-Wallet API 
 
 API REST de portefeuille électronique : **comptes, dépôts, retraits et transferts**, adossée à un grand livre comptable en **partie double**.
 
